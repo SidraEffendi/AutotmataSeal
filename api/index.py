@@ -4,8 +4,14 @@ import os
 import sys
 from typing import Any, Dict, List, Optional
 
-# Make the agents package importable from api/
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Make the agents package importable — works both locally and on Vercel
+_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _root not in sys.path:
+    sys.path.insert(0, _root)
+# Also try the directory containing this file (Vercel sometimes flattens structure)
+_here = os.path.dirname(os.path.abspath(__file__))
+if _here not in sys.path:
+    sys.path.insert(0, _here)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
