@@ -52,6 +52,15 @@
       "description": "Save for unexpected expenses",
       "priority": "high",
       "created": "2026-06-28"
+    },
+    {
+      "name": "Savings Goal",
+      "target_amount": 5000,
+      "deadline": "2026-12-31",
+      "current_savings": 0,
+      "description": "Save $5000 by December 2026",
+      "priority": "medium",
+      "created": "2026-06-28"
     }
   ],
   "debts": [

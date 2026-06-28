@@ -68,8 +68,16 @@ class ChatResponse(BaseModel):
     history: List[Dict[str, str]]
 
 
-@app.post("/api/chat", response_model=ChatResponse)
-def chat(req: ChatRequest) -> ChatResponse:
+@app.post("/api/chat")
+def chat(req: ChatRequest):
+    import traceback
+    try:
+        return _chat(req)
+    except Exception as e:
+        return {"error": str(e), "traceback": traceback.format_exc()}
+
+
+def _chat(req: ChatRequest) -> ChatResponse:
     storage.init_session(req.session_data)
     client = Groq()
     history = list(req.history)
