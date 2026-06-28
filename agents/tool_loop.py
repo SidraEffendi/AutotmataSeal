@@ -4,9 +4,8 @@ Avoids the raw <function=...> format bug in llama-3.1-8b-instant by using
 response_format=json_object instead of the tool_choice API.
 """
 import json
+import re
 from typing import Any, Callable, Dict, List
-
-from groq import Groq
 
 from config import normalize_groq_api_key
 
@@ -66,6 +65,8 @@ def run(
     handle_tool: Callable[[str, Dict[str, Any]], str],
 ) -> str:
     normalize_groq_api_key()
+    from groq import Groq
+
     client = Groq()
     tool_names = {t["function"]["name"] for t in tools}
     tools_description = _tools_to_description(tools)
@@ -77,18 +78,22 @@ def run(
     ]
 
     for _ in range(MAX_STEPS):
-        response = client.chat.completions.create(
-            model=MODEL,
-            messages=messages,
-            response_format={"type": "json_object"},
-            max_tokens=2048,
-            temperature=0.1,
-        )
-        raw = response.choices[0].message.content or "{}"
-
         try:
-            parsed = json.loads(raw)
-        except json.JSONDecodeError:
+            response = client.chat.completions.create(
+                model=MODEL,
+                messages=messages,
+                response_format={"type": "json_object"},
+                max_tokens=2048,
+                temperature=0.1,
+            )
+            raw = response.choices[0].message.content or "{}"
+        except Exception as exc:
+            raw = _extract_failed_generation(exc)
+            if raw is None:
+                raise
+
+        parsed = _parse_json_generation(raw)
+        if parsed is None:
             return raw
 
         # Normalise: if model returned a list of actions, process them all
@@ -113,8 +118,16 @@ def run(
                 tool_name = action
                 args = item.get("args") or item.get("arguments") or {}
             else:
-                final_answer = item.get("text", raw)
-                break
+                messages.append({"role": "assistant", "content": json.dumps(item)})
+                messages.append({
+                    "role": "user",
+                    "content": (
+                        "That JSON did not match the allowed tool-call schema. "
+                        "Use only call_tool for available tools, or answer with a final text field."
+                    ),
+                })
+                tool_called = True
+                continue
 
             tool_result = handle_tool(tool_name, args)
             messages.append({"role": "assistant", "content": json.dumps(item)})
@@ -127,3 +140,49 @@ def run(
             return raw
 
     return "I was unable to complete the request within the allowed steps."
+
+
+def _parse_json_generation(raw: str) -> Any:
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        pass
+
+    decoder = json.JSONDecoder()
+    values: list[Any] = []
+    index = 0
+    while index < len(raw):
+        while index < len(raw) and raw[index].isspace():
+            index += 1
+        if index >= len(raw):
+            break
+        try:
+            value, index = decoder.raw_decode(raw, index)
+        except json.JSONDecodeError:
+            return None
+        values.append(value)
+    if not values:
+        return None
+    return values
+
+
+def _extract_failed_generation(exc: Exception) -> str | None:
+    body = getattr(exc, "body", None)
+    if isinstance(body, dict):
+        failed = body.get("failed_generation")
+        if isinstance(failed, str) and failed.strip():
+            return failed
+        error = body.get("error")
+        if isinstance(error, dict):
+            failed = error.get("failed_generation")
+            if isinstance(failed, str) and failed.strip():
+                return failed
+
+    text = str(exc)
+    match = re.search(r"'failed_generation':\s*'(?P<value>.*)'\s*\}\s*\}?", text, re.DOTALL)
+    if not match:
+        return None
+    try:
+        return bytes(match.group("value"), "utf-8").decode("unicode_escape")
+    except UnicodeDecodeError:
+        return match.group("value")

@@ -102,6 +102,37 @@ class ApiSafetyFlowTests(unittest.TestCase):
         self.assertEqual(response.status_code, 500)
         self.assertIn("Chat request failed", response.json()["detail"])
 
+    def test_chat_handles_safe_direct_transfer_without_llm_router(self):
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "message": "i want to transfer 400 dollars from checking to brokerage account",
+                "session_data": {"safety_policy": load_json_fixture("policy.complex_budget700_item400.json")},
+                "history": [],
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("```finance-actions", payload["reply"])
+        self.assertIn('"amount":400', payload["reply"])
+        self.assertNotIn("TLA+ Safety Warning", payload["reply"])
+        self.assertNotIn("pending_safety_review", payload["session_data"])
+
+    def test_chat_warns_on_direct_transfer_above_individual_limit_without_llm_router(self):
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "message": "i want to transfer 500 dollars from checking to brokerage account",
+                "session_data": {"safety_policy": load_json_fixture("policy.complex_budget700_item400.json")},
+                "history": [],
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("TLA+ Safety Warning", payload["reply"])
+        self.assertIn("individual_action_limit_exceeded", payload["reply"])
+        self.assertIn("pending_safety_review", payload["session_data"])
+
     def test_safety_gate_allows_safe_finance_actions_block(self):
         storage.init_session({"safety_policy": load_json_fixture("policy.flow_budget600_item300.json")})
         warning = api_index._check_reply_with_tla_safety(

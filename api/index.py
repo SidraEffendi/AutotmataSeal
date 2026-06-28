@@ -28,7 +28,7 @@ load_dotenv()
 from agents import budget_agent, debt_agent, goal_agent, investment_agent, storage
 from config import normalize_groq_api_key
 from safety.agent import TlaSafetyAgentResult
-from safety.models import SafetyInputError, SafetyPolicy
+from safety.models import SafetyInputError, SafetyPolicy, dump_actions
 from safety.transformer import ExplicitRequestActionTransformer, FinanceActionsBlockTransformer
 from safety.agent import TlaSafetyAgent
 from safety.validator import SafetyFinding
@@ -165,6 +165,10 @@ def _chat(req: ChatRequest) -> ChatResponse:
     if pending_reply is not None:
         return pending_reply
 
+    direct_reply = _handle_direct_concrete_actions(req.message, history)
+    if direct_reply is not None:
+        return direct_reply
+
     client = Groq()
 
     # Step 1: Route to agent(s)
@@ -222,6 +226,32 @@ def _chat(req: ChatRequest) -> ChatResponse:
         reply=reply,
         session_data=storage.get_session() or {},
         history=history[-30:],
+    )
+
+
+def _handle_direct_concrete_actions(message: str, history: List[Dict[str, str]]) -> Optional[ChatResponse]:
+    try:
+        actions = ExplicitRequestActionTransformer().transform(message)
+    except SafetyInputError:
+        return None
+
+    reply = _format_direct_action_reply(actions)
+    safety_reply = _check_reply_with_tla_safety(message, reply)
+    if safety_reply is not None:
+        reply = safety_reply
+
+    history.append({"role": "user", "content": message})
+    history.append({"role": "assistant", "content": reply})
+    return ChatResponse(reply=reply, session_data=storage.get_session() or {}, history=history[-30:])
+
+
+def _format_direct_action_reply(actions: list[Any]) -> str:
+    action_word = "action" if len(actions) == 1 else "actions"
+    return (
+        f"I identified {len(actions)} concrete finance {action_word} and checked it against your safety policy.\n\n"
+        "```finance-actions\n"
+        f"{json.dumps(dump_actions(actions), separators=(',', ':'))}\n"
+        "```"
     )
 
 
