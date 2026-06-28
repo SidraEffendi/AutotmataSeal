@@ -5,3 +5,4 @@ __pycache__/
 finance_data.json
 .vercel
 .env*
+artifacts/safety-runs/

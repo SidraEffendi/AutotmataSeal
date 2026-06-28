@@ -29,14 +29,18 @@ AutomataSeal/
 │   ├── goal_agent.py       # Savings goal planning specialist
 │   ├── investment_agent.py # Investment guide specialist
 │   ├── debt_agent.py       # Debt payoff specialist
+│   ├── tla_safety_agent.py # TLA+ safety wrapper for proposed actions
 │   ├── tool_loop.py        # Shared JSON-mode agentic loop
 │   └── storage.py          # Data persistence (file locally, in-memory on Vercel)
+├── safety/                 # Action parser, policy checks, PlusCal/TLA generation, TLC runner
 ├── public/index.html       # Chat UI (dark theme, markdown rendering)
 ├── main.py                 # Optional CLI entry point
 └── vercel.json             # Vercel deployment config
 ```
 
 The orchestrator routes each user message to the right specialist agent(s) using a JSON-mode classifier. Each agent runs its own tool loop — reading/writing financial data — then returns a markdown response. Session data is stored in the browser via `localStorage`.
+
+The `tla-integration` branch also includes a TLA+ safety gate. It can normalize concrete finance-agent actions, generate readable PlusCal/TLA+ specs, translate them with `pcal.trans`, and run TLC before any real-world action is approved.
 
 ---
 
@@ -52,6 +56,9 @@ pip install -r requirements.txt
 cp .env.example .env
 # Add your key from https://console.groq.com
 ```
+
+The app prefers `GROQ_API_KEY`. It also accepts `GROK_API_KEY` as an alias for
+GitHub agent secrets or deployments that already use that spelling.
 
 **3. Start the web app**
 ```bash
@@ -72,6 +79,7 @@ python3 main.py
 npm install -g vercel
 vercel                              # link project
 vercel env add GROQ_API_KEY production  # add your Groq key
+# or use GROK_API_KEY; the app maps it to GROQ_API_KEY at runtime
 vercel --prod                       # deploy
 ```
 

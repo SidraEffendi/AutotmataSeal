@@ -1,0 +1,21 @@
+{
+  "budget": 600,
+  "max_individual_action_amount": 300,
+  "account_balances": {
+    "checking": 600,
+    "brokerage": 0,
+    "savings": 100
+  },
+  "allowed_destination_accounts": [
+    "brokerage",
+    "savings"
+  ],
+  "allowed_action_types": [
+    "buy",
+    "sell",
+    "swap",
+    "deposit",
+    "transfer",
+    "withdraw"
+  ]
+}

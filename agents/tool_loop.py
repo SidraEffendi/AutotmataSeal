@@ -8,6 +8,8 @@ from typing import Any, Callable, Dict, List
 
 from groq import Groq
 
+from config import normalize_groq_api_key
+
 MODEL = "llama-3.1-8b-instant"
 MAX_STEPS = 8
 
@@ -40,6 +42,19 @@ To call a tool:
 To give your final answer after you have the data you need:
 {{"action": "answer", "text": "<your full helpful response in markdown>"}}
 
+Your final answer text MUST end with exactly one machine-readable action block:
+```finance-actions
+{{"actions":[]}}
+```
+
+If you propose concrete executable money movement, trade, deposit, withdrawal,
+transfer, buy, sell, or swap instructions, include each one in that JSON list:
+{{"action":"buy|sell|swap|deposit|transfer|withdraw","amount":123,"from":"account","to":"account"}}
+
+If your response is only educational, hypothetical, descriptive, or already
+recorded by an internal bookkeeping tool, use an empty actions list. Never put
+comments inside the JSON block.
+
 Available tools:
 {tools_description}"""
 
@@ -50,6 +65,7 @@ def run(
     tools: List[Dict],
     handle_tool: Callable[[str, Dict[str, Any]], str],
 ) -> str:
+    normalize_groq_api_key()
     client = Groq()
     tool_names = {t["function"]["name"] for t in tools}
     tools_description = _tools_to_description(tools)

@@ -52,12 +52,15 @@
     }
     header h1 { font-size: 16px; font-weight: 600; color: var(--text); }
     header p { font-size: 12px; color: var(--muted); margin-top: 1px; }
-    .reset-btn {
+    .header-actions { display: flex; gap: 8px; align-items: center; }
+    .reset-btn, .policy-btn, .demo-btn {
       background: none; border: 1px solid var(--border);
       color: var(--muted); padding: 5px 10px; border-radius: 6px;
       font-size: 12px; cursor: pointer; transition: all .15s;
     }
     .reset-btn:hover { border-color: var(--red); color: var(--red); }
+    .policy-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .demo-btn:hover { border-color: var(--yellow); color: var(--yellow); }
 
     /* ── Agent chips ── */
     .chips {
@@ -182,6 +185,36 @@
     }
     .send-btn:hover { background: #79b8ff; }
     .send-btn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
+
+    /* ── Safety policy modal ── */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: #010409aa;
+      display: none; align-items: center; justify-content: center;
+      padding: 18px; z-index: 10;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      width: min(560px, 100%); background: var(--surface);
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 16px; box-shadow: 0 20px 80px #0008;
+    }
+    .modal h2 { font-size: 16px; margin-bottom: 12px; }
+    .policy-grid { display: grid; gap: 10px; }
+    .policy-grid label { display: grid; gap: 5px; color: var(--muted); font-size: 12px; }
+    .policy-grid input, .policy-grid textarea {
+      width: 100%; max-height: none; min-height: 0;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); padding: 8px;
+      font: 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .policy-grid textarea { min-height: 80px; resize: vertical; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+    .modal-actions button {
+      border: 1px solid var(--border); background: var(--surface2);
+      color: var(--text); padding: 7px 12px; border-radius: 6px; cursor: pointer;
+    }
+    .modal-actions .primary { background: var(--accent); color: #0d1117; border-color: var(--accent); font-weight: 700; }
+    .policy-error { color: var(--red); font-size: 12px; min-height: 16px; margin-top: 8px; }
   </style>
 </head>
 <body>
@@ -194,7 +227,11 @@
       <p>Budget · Goals · Investments · Debt</p>
     </div>
   </div>
-  <button class="reset-btn" onclick="resetSession()">Reset session</button>
+  <div class="header-actions">
+    <button class="demo-btn" onclick="demoBadSuggestion()">Demo bad warning</button>
+    <button class="policy-btn" onclick="openSafetyPolicy()">Safety policy</button>
+    <button class="reset-btn" onclick="resetSession()">Reset session</button>
+  </div>
 </header>
 
 <div class="chips">
@@ -226,6 +263,10 @@
         <strong>📊 Budget</strong>
         I spent $120 on groceries and set a $300/month grocery limit
       </div>
+      <div class="suggestion" onclick="demoBadSuggestion()">
+        <strong>⚠️ Safety Demo</strong>
+        Inject a bad financial suggestion and verify the TLA+ warning gate catches it
+      </div>
     </div>
   </div>
 </div>
@@ -239,6 +280,35 @@
     oninput="autoResize(this)"
   ></textarea>
   <button class="send-btn" id="sendBtn" onclick="send()" title="Send">↑</button>
+</div>
+
+<div class="modal-backdrop" id="policyModal" onclick="backdropClose(event)">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="policyTitle">
+    <h2 id="policyTitle">Safety policy</h2>
+    <div class="policy-grid">
+      <label>
+        Total action budget
+        <input id="policyBudget" inputmode="numeric" placeholder="700" />
+      </label>
+      <label>
+        Max individual action amount
+        <input id="policyMaxAction" inputmode="numeric" placeholder="400" />
+      </label>
+      <label>
+        Account balances JSON
+        <textarea id="policyBalances" spellcheck="false" placeholder='{"checking":1000,"brokerage":0,"savings":300}'></textarea>
+      </label>
+      <label>
+        Allowed destination accounts
+        <input id="policyDestinations" placeholder="brokerage, savings" />
+      </label>
+    </div>
+    <div class="policy-error" id="policyError"></div>
+    <div class="modal-actions">
+      <button onclick="closeSafetyPolicy()">Cancel</button>
+      <button class="primary" onclick="saveSafetyPolicy()">Save</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -262,6 +332,72 @@
     saveState();
     document.getElementById('chat').innerHTML = '';
     document.getElementById('chat').appendChild(welcome());
+  }
+
+  function defaultPolicy() {
+    return {
+      budget: 700,
+      max_individual_action_amount: 400,
+      account_balances: { checking: 1000, brokerage: 0, savings: 300 },
+      allowed_destination_accounts: ['brokerage', 'savings'],
+    };
+  }
+
+  function currentPolicy() {
+    if (!state.session_data) state.session_data = {};
+    return state.session_data.safety_policy || defaultPolicy();
+  }
+
+  function openSafetyPolicy() {
+    const policy = currentPolicy();
+    document.getElementById('policyBudget').value = policy.budget ?? '';
+    document.getElementById('policyMaxAction').value = policy.max_individual_action_amount ?? policy.budget ?? '';
+    document.getElementById('policyBalances').value = JSON.stringify(policy.account_balances || {}, null, 2);
+    document.getElementById('policyDestinations').value = (policy.allowed_destination_accounts || []).join(', ');
+    document.getElementById('policyError').textContent = '';
+    document.getElementById('policyModal').classList.add('open');
+  }
+
+  function closeSafetyPolicy() {
+    document.getElementById('policyModal').classList.remove('open');
+  }
+
+  function backdropClose(event) {
+    if (event.target.id === 'policyModal') closeSafetyPolicy();
+  }
+
+  function saveSafetyPolicy() {
+    const error = document.getElementById('policyError');
+    try {
+      const budget = parseInt(document.getElementById('policyBudget').value, 10);
+      const maxAction = parseInt(document.getElementById('policyMaxAction').value, 10);
+      const balances = JSON.parse(document.getElementById('policyBalances').value);
+      const destinations = document.getElementById('policyDestinations').value
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+      if (!Number.isInteger(budget) || budget < 0) throw new Error('Budget must be a non-negative integer.');
+      if (!Number.isInteger(maxAction) || maxAction < 0) throw new Error('Max action amount must be a non-negative integer.');
+      if (!balances || Array.isArray(balances) || typeof balances !== 'object') throw new Error('Account balances must be a JSON object.');
+      for (const [account, amount] of Object.entries(balances)) {
+        if (!account.trim()) throw new Error('Account names cannot be empty.');
+        if (!Number.isInteger(amount)) throw new Error(`Balance for ${account} must be an integer.`);
+      }
+      if (!destinations.length) throw new Error('Add at least one allowed destination.');
+
+      if (!state.session_data) state.session_data = {};
+      state.session_data.safety_policy = {
+        budget,
+        max_individual_action_amount: maxAction,
+        account_balances: balances,
+        allowed_destination_accounts: destinations,
+      };
+      saveState();
+      closeSafetyPolicy();
+    } catch (err) {
+      error.textContent = err.message;
+    }
   }
 
   function welcome() {
@@ -301,11 +437,12 @@
 
     const bubble = document.createElement('div');
     bubble.className = 'bubble';
+    const safeContent = typeof content === 'string' ? content : String(content ?? '');
 
     if (role === 'agent') {
-      bubble.innerHTML = marked.parse(content);
+      bubble.innerHTML = marked.parse(safeContent);
     } else {
-      bubble.textContent = content;
+      bubble.textContent = safeContent;
     }
 
     msg.appendChild(avatar);
@@ -369,6 +506,9 @@
       }
 
       const data = await res.json();
+      if (!data || typeof data.reply !== 'string') {
+        throw new Error(data?.error || 'Malformed server response: missing reply.');
+      }
       removeThinking();
       addMessage(data.reply, 'agent');
       state.session_data = data.session_data;
@@ -380,6 +520,46 @@
     } finally {
       btn.disabled = false;
       input.focus();
+    }
+  }
+
+  async function demoBadSuggestion() {
+    const btn = document.getElementById('sendBtn');
+    btn.disabled = true;
+
+    addMessage('Run a bad financial suggestion safety demo', 'user');
+    addThinking();
+
+    try {
+      const res = await fetch('/api/demo/bad-suggestion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_data: state.session_data,
+          history: state.history,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Server error ${res.status}`);
+      }
+
+      const data = await res.json();
+      if (!data || typeof data.reply !== 'string') {
+        throw new Error(data?.error || 'Malformed server response: missing reply.');
+      }
+      removeThinking();
+      addMessage(data.reply, 'agent');
+      state.session_data = data.session_data;
+      state.history = data.history;
+      saveState();
+    } catch (err) {
+      removeThinking();
+      addMessage(`⚠️ ${err.message}`, 'agent');
+    } finally {
+      btn.disabled = false;
+      document.getElementById('input').focus();
     }
   }
 </script>
