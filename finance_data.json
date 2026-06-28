@@ -1,0 +1,79 @@
+{
+  "transactions": [
+    {
+      "id": 1,
+      "amount": 85,
+      "type": "expense",
+      "category": "groceries",
+      "description": "grocery shopping",
+      "date": "2026-06-28"
+    },
+    {
+      "id": 2,
+      "amount": -85,
+      "type": "expense",
+      "category": "groceries",
+      "description": "grocery shopping",
+      "date": "2026-06-28"
+    },
+    {
+      "id": 3,
+      "amount": 2000,
+      "type": "income",
+      "category": "salary",
+      "description": "monthly salary",
+      "date": "2026-06-28"
+    },
+    {
+      "id": 4,
+      "amount": 15000,
+      "type": "goal",
+      "category": "savings",
+      "description": "Emergency fund goal",
+      "date": "2026-06-28"
+    }
+  ],
+  "budget_limits": {},
+  "goals": [
+    {
+      "name": "House Down Payment",
+      "target_amount": 20000,
+      "deadline": "2027-12-31",
+      "current_savings": 3000,
+      "description": "",
+      "priority": "high",
+      "created": "2026-06-28"
+    },
+    {
+      "name": "Emergency Fund",
+      "target_amount": 15000,
+      "deadline": "2027-06-30",
+      "current_savings": 0,
+      "description": "Save for unexpected expenses",
+      "priority": "high",
+      "created": "2026-06-28"
+    }
+  ],
+  "debts": [
+    {
+      "name": "Chase Credit Card",
+      "balance": 5000,
+      "annual_interest_rate": 22,
+      "minimum_payment": 100,
+      "debt_type": "credit_card"
+    },
+    {
+      "name": "Chase Freedom",
+      "balance": 4200,
+      "annual_interest_rate": 22,
+      "minimum_payment": 85,
+      "debt_type": "other"
+    }
+  ],
+  "risk_profile": {
+    "age": 29,
+    "risk_tolerance": "moderate",
+    "investment_horizon_years": 25,
+    "monthly_investment_capacity": 400
+  }
+}
