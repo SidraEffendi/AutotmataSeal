@@ -1,6 +1,6 @@
 """
 JSON-mode agentic loop for Groq.
-Avoids the raw <function=...> format bug in llama-3.3-70b-versatile by using
+Avoids the raw <function=...> format bug in llama-3.1-8b-instant by using
 response_format=json_object instead of the tool_choice API.
 """
 import json
@@ -8,7 +8,7 @@ from typing import Any, Callable, Dict, List
 
 from groq import Groq
 
-MODEL = "llama-3.3-70b-versatile"
+MODEL = "llama-3.1-8b-instant"
 MAX_STEPS = 8
 
 
@@ -51,6 +51,7 @@ def run(
     handle_tool: Callable[[str, Dict[str, Any]], str],
 ) -> str:
     client = Groq()
+    tool_names = {t["function"]["name"] for t in tools}
     tools_description = _tools_to_description(tools)
     enhanced_system = system_prompt + LOOP_SUFFIX.format(tools_description=tools_description)
 
@@ -74,19 +75,39 @@ def run(
         except json.JSONDecodeError:
             return raw
 
-        action = parsed.get("action", "")
+        # Normalise: if model returned a list of actions, process them all
+        actions = parsed if isinstance(parsed, list) else [parsed]
 
-        if action == "answer":
-            return parsed.get("text", raw)
+        tool_called = False
+        final_answer = None
 
-        if action == "call_tool":
-            tool_name = parsed.get("tool", "")
-            args = parsed.get("args") or {}
+        for item in actions:
+            if not isinstance(item, dict):
+                continue
+            action = item.get("action", "")
+
+            if action == "answer":
+                final_answer = item.get("text", raw)
+                break
+
+            if action == "call_tool":
+                tool_name = item.get("tool", "")
+                args = item.get("args") or {}
+            elif action in tool_names:
+                tool_name = action
+                args = item.get("args") or item.get("arguments") or {}
+            else:
+                final_answer = item.get("text", raw)
+                break
+
             tool_result = handle_tool(tool_name, args)
-            messages.append({"role": "assistant", "content": raw})
+            messages.append({"role": "assistant", "content": json.dumps(item)})
             messages.append({"role": "user", "content": f"Tool result for {tool_name}:\n{tool_result}"})
-        else:
-            # Model output something unexpected — treat as final answer
-            return parsed.get("text", raw)
+            tool_called = True
+
+        if final_answer is not None:
+            return final_answer
+        if not tool_called:
+            return raw
 
     return "I was unable to complete the request within the allowed steps."

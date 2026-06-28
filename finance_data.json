@@ -80,9 +80,9 @@
     }
   ],
   "risk_profile": {
-    "age": 29,
-    "risk_tolerance": "moderate",
-    "investment_horizon_years": 25,
-    "monthly_investment_capacity": 400
+    "age": 27,
+    "risk_tolerance": "aggressive",
+    "investment_horizon_years": 30,
+    "monthly_investment_capacity": 600
   }
 }

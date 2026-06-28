@@ -13,11 +13,14 @@ _here = os.path.dirname(os.path.abspath(__file__))
 if _here not in sys.path:
     sys.path.insert(0, _here)
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from groq import Groq
 from pydantic import BaseModel
+
+load_dotenv()
 
 from agents import budget_agent, debt_agent, goal_agent, investment_agent, storage
 
@@ -84,7 +87,7 @@ def _chat(req: ChatRequest) -> ChatResponse:
 
     # Step 1: Route to agent(s)
     router_resp = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="llama-3.1-8b-instant",
         messages=[
             {"role": "system", "content": ROUTER_SYSTEM},
             {"role": "user", "content": req.message},
@@ -115,7 +118,7 @@ def _chat(req: ChatRequest) -> ChatResponse:
     else:
         combined = "\n\n".join(f"**{label}:**\n{resp}" for label, resp in results.items())
         synth = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": ORCHESTRATOR_SYSTEM},
                 {"role": "user", "content": req.message},

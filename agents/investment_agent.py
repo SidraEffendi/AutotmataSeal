@@ -151,10 +151,10 @@ def _handle_tool(name: str, inp: Dict[str, Any]) -> str:
         profile = data.get("risk_profile") or {}
         risk = inp.get("risk_override") or profile.get("risk_tolerance", "moderate")
         template = PORTFOLIO_TEMPLATES[risk]
-        lump = inp.get("lump_sum_amount")
-        monthly = profile.get("monthly_investment_capacity", 0)
-        existing = profile.get("existing_investments", 0)
-        horizon = profile.get("investment_horizon_years", 10)
+        lump = inp.get("lump_sum_amount") or 0
+        monthly = profile.get("monthly_investment_capacity") or 0
+        existing = profile.get("existing_investments") or 0
+        horizon = profile.get("investment_horizon_years") or 10
 
         allocation_dollars = {}
         if lump:
@@ -162,7 +162,7 @@ def _handle_tool(name: str, inp: Dict[str, Any]) -> str:
                 allocation_dollars[asset] = round(lump * pct / 100, 2)
 
         projected_10yr = _compound_fv(
-            (lump or 0) + existing,
+            lump + existing,
             template["expected_annual_return"],
             min(horizon, 10),
             monthly,
@@ -189,10 +189,10 @@ def _handle_tool(name: str, inp: Dict[str, Any]) -> str:
         })
 
     if name == "calculate_compound_growth":
-        p = inp["principal"]
-        r = inp["annual_rate"]
-        y = inp["years"]
-        m = inp.get("monthly_contribution", 0)
+        p = inp.get("principal") or 0
+        r = inp.get("annual_rate") or 0
+        y = inp.get("years") or 0
+        m = inp.get("monthly_contribution") or 0
         fv = _compound_fv(p, r, y, m)
         total_contributed = p + m * y * 12
         growth = fv - total_contributed
@@ -213,9 +213,9 @@ def _handle_tool(name: str, inp: Dict[str, Any]) -> str:
         })
 
     if name == "compare_investment_scenarios":
-        m = inp["monthly_amount"]
-        y = inp["years"]
-        start = inp.get("initial_investment", 0)
+        m = inp.get("monthly_amount") or 0
+        y = inp.get("years") or 0
+        start = inp.get("initial_investment") or 0
         scenarios = {
             "Conservative (5% return)": _compound_fv(start, 0.05, y, m),
             "Moderate (7% return)": _compound_fv(start, 0.07, y, m),
