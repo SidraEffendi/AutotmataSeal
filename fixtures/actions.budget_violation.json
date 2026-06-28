@@ -1,0 +1,16 @@
+{
+  "actions": [
+    {
+      "action": "transfer",
+      "amount": 700,
+      "from": "checking",
+      "to": "brokerage"
+    },
+    {
+      "action": "buy",
+      "amount": 500,
+      "from": "checking",
+      "to": "brokerage"
+    }
+  ]
+}

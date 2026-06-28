@@ -15,7 +15,10 @@ from rich.prompt import Prompt
 from rich.rule import Rule
 from rich.text import Text
 
+from config import has_groq_api_key, normalize_groq_api_key
+
 load_dotenv()
+normalize_groq_api_key()
 
 console = Console()
 
@@ -242,8 +245,8 @@ HELP_TEXT = """
 
 
 def main():
-    if not os.getenv("GROQ_API_KEY"):
-        console.print("[bold red]Error:[/bold red] GROQ_API_KEY not set.")
+    if not has_groq_api_key():
+        console.print("[bold red]Error:[/bold red] GROQ_API_KEY or GROK_API_KEY not set.")
         console.print("Copy [bold].env.example[/bold] to [bold].env[/bold] and add your Groq API key.")
         sys.exit(1)
 

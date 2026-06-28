@@ -1,0 +1,20 @@
+{
+  "budget": 1000,
+  "account_balances": {
+    "checking": 1200,
+    "brokerage": 0,
+    "savings": 500
+  },
+  "allowed_destination_accounts": [
+    "brokerage",
+    "savings"
+  ],
+  "allowed_action_types": [
+    "buy",
+    "sell",
+    "swap",
+    "deposit",
+    "transfer",
+    "withdraw"
+  ]
+}
