@@ -141,30 +141,7 @@ def _chat(req: ChatRequest) -> ChatResponse:
 
 @app.get("/api/health")
 def health():
-    return {
-        "status": "ok",
-        "sys_path": sys.path[:5],
-        "cwd": os.getcwd(),
-        "file": __file__,
-        "agents_exists": os.path.isdir(os.path.join(_root, "agents")),
-        "root": _root,
-        "here": _here,
-    }
-
-
-@app.get("/api/debug")
-def debug():
-    results = {}
-    for p in sys.path:
-        agents_path = os.path.join(p, "agents")
-        if os.path.isdir(agents_path):
-            results[p] = os.listdir(agents_path)
-    try:
-        import agents  # noqa: F401
-        results["import"] = "success"
-    except Exception as e:
-        results["import_error"] = str(e)
-    return results
+    return {"status": "ok"}
 
 
 # Serve static files locally only (Vercel handles this via CDN in production)

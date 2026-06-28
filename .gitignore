@@ -3,3 +3,5 @@ __pycache__/
 *.pyo
 .env
 finance_data.json
+.vercel
+.env*
