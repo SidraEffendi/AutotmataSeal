@@ -127,7 +127,8 @@ def health():
     return {"status": "ok"}
 
 
-# Serve the frontend for all non-API routes
-public_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "public")
-if os.path.isdir(public_dir):
-    app.mount("/", StaticFiles(directory=public_dir, html=True), name="static")
+# Serve static files locally only (Vercel handles this via CDN in production)
+if not os.getenv("VERCEL"):
+    public_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "public")
+    if os.path.isdir(public_dir):
+        app.mount("/", StaticFiles(directory=public_dir, html=True), name="static")
