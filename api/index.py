@@ -332,7 +332,7 @@ def _check_reply_with_tla_safety(user_message: str, finance_reply: str) -> Optio
             run_model_checker=_should_run_tlc(),
         )
     except SafetyInputError as exc:
-        result = _recover_from_missing_actions_block(str(exc), user_message, policy)
+        result = _recover_from_finance_actions_protocol_error(str(exc), user_message, policy)
     except Exception as exc:
         result = _failed_safety_result(str(exc))
 
@@ -347,10 +347,11 @@ def _check_reply_with_tla_safety(user_message: str, finance_reply: str) -> Optio
     return _format_safety_warning(result, policy_configured)
 
 
-def _recover_from_missing_actions_block(message: str, user_message: str, policy: SafetyPolicy) -> TlaSafetyAgentResult:
-    if "missing the required" not in message:
-        return _failed_safety_result(message, code="finance_output_protocol_violation")
-
+def _recover_from_finance_actions_protocol_error(
+    message: str,
+    user_message: str,
+    policy: SafetyPolicy,
+) -> TlaSafetyAgentResult:
     checker = TlaSafetyAgent(
         transformer=ExplicitRequestActionTransformer(),
         artifact_root=_safety_artifact_root(),
@@ -371,7 +372,7 @@ def _recover_from_missing_actions_block(message: str, user_message: str, policy:
         code="finance_output_protocol_violation",
         severity="warning",
         message=(
-            "The finance agent omitted the required finance-actions block. "
+            "The finance agent response did not match the required finance-actions schema. "
             "Concrete actions were recovered from the user request so policy violations could still be shown."
         ),
     )

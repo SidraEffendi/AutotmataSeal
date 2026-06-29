@@ -197,6 +197,22 @@ class ApiSafetyFlowTests(unittest.TestCase):
         self.assertIn("individual_action_limit_exceeded", warning)
         self.assertIn("negative_source_balance", warning)
 
+    def test_safety_gate_recovers_when_finance_block_uses_wrong_field_names(self):
+        storage.init_session({"safety_policy": load_json_fixture("policy.complex_budget700_item400.json")})
+        warning = api_index._check_reply_with_tla_safety(
+            "i want to transfer 10000 dollars from brokerage account to savings account.",
+            (
+                "```finance-actions\n"
+                '{"actions":[{"action":"transfer","amount":10000,"source":"brokerage","destination":"savings"}]}\n'
+                "```"
+            ),
+        )
+        self.assertIsNotNone(warning)
+        self.assertIn("finance_output_protocol_violation", warning)
+        self.assertIn("individual_action_limit_exceeded", warning)
+        self.assertIn("budget_exceeded", warning)
+        self.assertIn("negative_source_balance", warning)
+
     def test_safety_gate_allows_recovered_safe_actions_when_finance_block_is_missing(self):
         storage.init_session({"safety_policy": load_json_fixture("policy.complex_budget700_item400.json")})
         warning = api_index._check_reply_with_tla_safety(

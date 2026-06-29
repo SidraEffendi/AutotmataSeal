@@ -91,7 +91,9 @@ class ExplicitRequestActionTransformer:
         r"(?:\s+(?:dollars?|usd))?"
         r"(?:\s+[^,.]*?)?"
         r"\s+from\s+(?P<source>[A-Za-z0-9_-]+)"
-        r"\s+(?:to|into)\s+(?P<destination>[A-Za-z0-9_-]+)",
+        r"(?:\s+account)?"
+        r"\s+(?:to|into)\s+(?P<destination>[A-Za-z0-9_-]+)"
+        r"(?:\s+account)?",
         re.IGNORECASE,
     )
 

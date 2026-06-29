@@ -231,6 +231,15 @@ class SafetyGateTests(unittest.TestCase):
         self.assertEqual(actions[0].source, "checking")
         self.assertEqual(actions[0].destination, "savings")
 
+    def test_explicit_request_fallback_parses_account_suffixes(self):
+        transformer = ExplicitRequestActionTransformer()
+        actions = transformer.transform("i want to transfer 10000 dollars from brokerage account to savings account.")
+        self.assertEqual(len(actions), 1)
+        self.assertEqual(actions[0].action, "transfer")
+        self.assertEqual(actions[0].amount, 10000)
+        self.assertEqual(actions[0].source, "brokerage")
+        self.assertEqual(actions[0].destination, "savings")
+
     def test_explicit_request_fallback_parses_chained_transfer_with_elided_verb(self):
         transformer = ExplicitRequestActionTransformer()
         actions = transformer.transform(
