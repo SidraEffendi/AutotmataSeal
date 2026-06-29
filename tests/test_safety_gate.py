@@ -231,6 +231,20 @@ class SafetyGateTests(unittest.TestCase):
         self.assertEqual(actions[0].source, "checking")
         self.assertEqual(actions[0].destination, "savings")
 
+    def test_explicit_request_fallback_parses_chained_transfer_with_elided_verb(self):
+        transformer = ExplicitRequestActionTransformer()
+        actions = transformer.transform(
+            "i want to transfer 400 dollars from checking to brokerage, "
+            "then 400 dollars from checking to savings"
+        )
+        self.assertEqual(len(actions), 2)
+        self.assertEqual(actions[0].action, "transfer")
+        self.assertEqual(actions[0].amount, 400)
+        self.assertEqual(actions[0].destination, "brokerage")
+        self.assertEqual(actions[1].action, "transfer")
+        self.assertEqual(actions[1].amount, 400)
+        self.assertEqual(actions[1].destination, "savings")
+
     def test_agents_wrapper_supports_structured_json_mode(self):
         from agents.tla_safety_agent import run as run_tla_agent
 

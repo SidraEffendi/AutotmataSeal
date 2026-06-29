@@ -86,8 +86,9 @@ class ExplicitRequestActionTransformer:
         "withdraw": "withdraw",
     }
     ACTION_RE = re.compile(
-        r"\b(?P<action>buy|sell|swap|deposit|transfer|transfare|withdraw)\b"
-        r"\s+\$?(?P<amount>\d+(?:,\d{3})*)(?:\.\d+)?"
+        r"(?:\b(?P<action>buy|sell|swap|deposit|transfer|transfare|withdraw)\b\s+)?"
+        r"\$?(?P<amount>\d+(?:,\d{3})*)(?:\.\d+)?"
+        r"(?:\s+(?:dollars?|usd))?"
         r"(?:\s+[^,.]*?)?"
         r"\s+from\s+(?P<source>[A-Za-z0-9_-]+)"
         r"\s+(?:to|into)\s+(?P<destination>[A-Za-z0-9_-]+)",
@@ -96,8 +97,16 @@ class ExplicitRequestActionTransformer:
 
     def transform(self, finance_agent_output: str) -> list[FinanceAction]:
         actions: list[dict[str, object]] = []
+        last_action: str | None = None
         for match in self.ACTION_RE.finditer(finance_agent_output):
-            action = self.ACTION_ALIASES[match.group("action").lower()]
+            raw_action = match.group("action")
+            if raw_action:
+                action = self.ACTION_ALIASES[raw_action.lower()]
+                last_action = action
+            elif last_action:
+                action = last_action
+            else:
+                continue
             amount_text = match.group("amount").replace(",", "")
             actions.append({
                 "action": action,

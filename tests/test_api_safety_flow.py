@@ -133,6 +133,26 @@ class ApiSafetyFlowTests(unittest.TestCase):
         self.assertIn("individual_action_limit_exceeded", payload["reply"])
         self.assertIn("pending_safety_review", payload["session_data"])
 
+    def test_chat_detects_chained_transfer_with_elided_second_verb(self):
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "message": (
+                    "i want to transfer 400 dollars from checking to brokerage, "
+                    "then 400 dollars from checking to savings"
+                ),
+                "session_data": {"safety_policy": load_json_fixture("policy.complex_budget700_item400.json")},
+                "history": [],
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("TLA+ Safety Warning", payload["reply"])
+        self.assertIn("budget_exceeded", payload["reply"])
+        self.assertIn("pending_safety_review", payload["session_data"])
+        actions = payload["session_data"]["pending_safety_review"]["safety_report"]["findings"]
+        self.assertTrue(any(finding.get("action_index") == 2 for finding in actions))
+
     def test_safety_gate_allows_safe_finance_actions_block(self):
         storage.init_session({"safety_policy": load_json_fixture("policy.flow_budget600_item300.json")})
         warning = api_index._check_reply_with_tla_safety(
