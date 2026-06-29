@@ -1,103 +1,160 @@
-# AutomataSeal — Personal Finance Agent
+# AutomataSeal
 
-A multi-agent AI assistant for personal finance powered by [Groq](https://groq.com). Chat with it to track budgets, set savings goals, get investment recommendations, and build debt payoff plans.
+> AI-powered personal finance agent with a formal safety gate — budget, goals, investments, and debt in one chat.
 
-**Live demo:** https://automata-seal.vercel.app
+**Live:** https://automata-seal.vercel.app
 
 ---
 
-## What it does
+## Overview
 
-Four specialist AI agents work together behind a single chat interface:
+AutomataSeal is a multi-agent AI system that acts as your personal financial advisor. Type naturally — it routes your message to the right specialist, runs the numbers, and responds in plain language.
 
-| Agent | Capabilities |
+```
+"I spent $120 on groceries"           → Budget Agent logs the expense
+"Save $10k for a house by 2027"       → Goal Agent calculates monthly savings needed
+"Invest $500/month, moderate risk"    → Investment Agent builds a portfolio plan
+"Credit card $5k at 22% APR"          → Debt Agent runs snowball vs avalanche
+```
+
+Before any **concrete financial action** (transfer, buy, withdraw, etc.) is executed, it passes through a **TLA+ / PlusCal finite-state safety gate** that model-checks the action against your declared policy.
+
+---
+
+## Finance Agents
+
+| Agent | What it handles |
 |---|---|
-| **Budget Tracker** | Log income & expenses, set monthly category limits, view spending breakdowns |
-| **Goal Planner** | Create savings goals with deadlines, calculate required monthly savings, track progress |
-| **Investment Guide** | Risk profiling, ETF/index fund portfolio allocations, compound growth projections |
-| **Debt Eliminator** | Track debts, simulate snowball vs avalanche payoff plans, show interest saved |
+| **Budget** | Log income & expenses, category limits, monthly summaries |
+| **Goal Planner** | Savings goals with deadlines, required monthly savings, progress tracking |
+| **Investment Guide** | Risk profiling, ETF/index fund allocations (VTI, VXUS, BND), compound growth |
+| **Debt Eliminator** | Snowball vs avalanche payoff plans, interest saved, payoff timelines |
 
 ---
 
-## Architecture
+## TLA+ Safety Gate
+
+Every proposed action the AI generates is passed through a formal verification pipeline before being approved:
+
+```
+Finance Agent output
+        │
+        ▼
+  Action Parser          extracts structured actions from prose
+        │
+        ▼
+  Policy Validator       checks amounts, accounts, action types against your policy
+        │
+        ▼
+  TLA+ / PlusCal Gen     generates a formal spec of the proposed state transitions
+        │
+        ▼
+  TLC Model Checker      exhaustively checks all reachable states for invariant violations
+        │
+        ▼
+  Safe to execute?  ──yes──▶  proceed
+                    ──no───▶  block + show findings, ask user to confirm or stop
+```
+
+**What the safety policy covers:**
+
+| Field | Description |
+|---|---|
+| `budget` | Maximum total spend across all actions |
+| `max_individual_action_amount` | Cap on any single action |
+| `account_balances` | Starting balances used in the state machine |
+| `allowed_destination_accounts` | Whitelist of permitted transfer targets |
+| `allowed_action_types` | Permitted verbs: `buy`, `sell`, `swap`, `deposit`, `transfer`, `withdraw` |
+
+The TLA+ spec models your accounts as finite automata — each action transitions the state, and TLC verifies that no sequence of actions violates your constraints (e.g. overdraft, unauthorized destination, budget exceeded).
+
+Artifacts (`.tla`, `.cfg`, TLC output) are saved per run under `artifacts/safety-runs/`.
+
+---
+
+## Project structure
 
 ```
 AutomataSeal/
-├── api/index.py            # FastAPI backend (works on Vercel + localhost)
+├── api/index.py             # FastAPI backend — Vercel + localhost
 ├── agents/
-│   ├── budget_agent.py     # Budget tracking specialist
-│   ├── goal_agent.py       # Savings goal planning specialist
-│   ├── investment_agent.py # Investment guide specialist
-│   ├── debt_agent.py       # Debt payoff specialist
-│   ├── tla_safety_agent.py # TLA+ safety wrapper for proposed actions
-│   ├── tool_loop.py        # Shared JSON-mode agentic loop
-│   └── storage.py          # Data persistence (file locally, in-memory on Vercel)
-├── safety/                 # Action parser, policy checks, PlusCal/TLA generation, TLC runner
-├── public/index.html       # Chat UI (dark theme, markdown rendering)
-├── main.py                 # Optional CLI entry point
-└── vercel.json             # Vercel deployment config
+│   ├── budget_agent.py
+│   ├── goal_agent.py
+│   ├── investment_agent.py
+│   ├── debt_agent.py
+│   ├── tla_safety_agent.py  # Safety gate entry point
+│   ├── tool_loop.py         # Shared JSON-mode agentic loop
+│   └── storage.py           # File locally, in-memory on Vercel
+├── safety/
+│   ├── agent.py             # TlaSafetyAgent — full pipeline orchestrator
+│   ├── models.py            # FinanceAction, SafetyPolicy data models
+│   ├── tla_generator.py     # PlusCal / TLA+ spec generator
+│   ├── checker.py           # pcal.trans + TLC runner
+│   ├── transformer.py       # Parses finance-agent prose → structured actions
+│   └── validator.py         # Policy invariant checks, SafetyFinding
+├── public/index.html        # Chat UI
+├── main.py                  # CLI entry point
+└── vercel.json
 ```
-
-The orchestrator routes each user message to the right specialist agent(s) using a JSON-mode classifier. Each agent runs its own tool loop — reading/writing financial data — then returns a markdown response. Session data is stored in the browser via `localStorage`.
-
-The `tla-integration` branch also includes a TLA+ safety gate. It can normalize concrete finance-agent actions, generate readable PlusCal/TLA+ specs, translate them with `pcal.trans`, and run TLC before any real-world action is approved.
 
 ---
 
-## Running locally
+## Run locally
 
-**1. Install dependencies**
 ```bash
+# 1. Install
 pip install -r requirements.txt
-```
 
-**2. Add your Groq API key**
-```bash
+# 2. Set API key (get one free at https://console.groq.com)
 cp .env.example .env
-# Add your key from https://console.groq.com
-```
+# edit .env → GROQ_API_KEY=your_key
 
-The app prefers `GROQ_API_KEY`. It also accepts `GROK_API_KEY` as an alias for
-GitHub agent secrets or deployments that already use that spelling.
+# 3. Web app
+python3 -m uvicorn api.index:app --port 8000
+# open http://localhost:8000
 
-**3. Start the web app**
-```bash
-GROQ_API_KEY=your_key python3 -m uvicorn api.index:app --port 8000
-```
-Open **http://localhost:8000**
-
-**Or use the terminal CLI**
-```bash
+# 3b. Terminal CLI
 python3 main.py
 ```
 
 ---
 
-## Deploying to Vercel
+## Deploy to Vercel
 
 ```bash
 npm install -g vercel
-vercel                              # link project
-vercel env add GROQ_API_KEY production  # add your Groq key
-# or use GROK_API_KEY; the app maps it to GROQ_API_KEY at runtime
-vercel --prod                       # deploy
+vercel                                   # link project
+vercel env add GROQ_API_KEY production   # add API key as secret
+vercel --prod                            # deploy
 ```
 
 ---
 
 ## Example prompts
 
-- `I spent $120 on groceries today`
-- `I want to save $10,000 for an emergency fund by December 2026`
-- `I'm 28, moderate risk, can invest $500/month for 25 years — what should I buy?`
-- `I have a credit card with $5,000 at 22% APR — show me a payoff plan with $200 extra/month`
+**Budget**
+- `I spent $85 on groceries and $45 on transport today`
+- `Set a $300/month limit for dining out`
+
+**Goals**
+- `I want to save $10,000 for an emergency fund by June 2027`
+- `I have $2,000 saved toward my vacation goal — update my progress`
+
+**Investing**
+- `I'm 27, aggressive risk, can invest $600/month for 30 years`
+- `If I invest $300/month for 20 years at 7%, what will I have?`
+
+**Debt**
+- `I have a Chase card with $4,500 at 22% APR, $90 minimum`
+- `Compare snowball vs avalanche with $150 extra per month`
 
 ---
 
 ## Tech stack
 
-- **LLM** — Groq `llama-3.1-8b-instant`
-- **Backend** — FastAPI + Python
-- **Frontend** — HTML/CSS/JS + [marked.js](https://marked.js.org)
+- **LLM** — [Groq](https://groq.com) (`llama-3.1-8b-instant`)
+- **Safety** — TLA+ / PlusCal + TLC model checker
+- **Backend** — FastAPI (Python)
+- **Frontend** — Vanilla HTML/CSS/JS, [marked.js](https://marked.js.org)
 - **Hosting** — Vercel
 - **CLI** — [Rich](https://github.com/Textualize/rich)
